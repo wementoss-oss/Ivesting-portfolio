@@ -1,455 +1,1092 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#ffffff">
-<title>투자 현황 관리</title>
-<link rel="manifest" href="manifest.json">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#ffffff;--bg2:#f5f5f3;--bg3:#eeede9;
-  --text:#1a1a1a;--text2:#666;--text3:#999;
-  --border:rgba(0,0,0,0.12);--border2:rgba(0,0,0,0.2);
-  --radius:8px;--radius-lg:12px;
-  --pos:#1D9E75;--neg:#D85A30;
-}
-@media(prefers-color-scheme:dark){
-  :root{
-    --bg:#1a1a1a;--bg2:#242424;--bg3:#2e2e2e;
-    --text:#f0f0f0;--text2:#aaa;--text3:#666;
-    --border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.2);
-  }
-}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg3);color:var(--text);min-height:100vh;padding-bottom:80px}
-.header{background:var(--bg);border-bottom:0.5px solid var(--border);padding:14px 16px;position:sticky;top:0;z-index:100}
-.header h1{font-size:17px;font-weight:600}
-.header p{font-size:12px;color:var(--text2);margin-top:2px}
-.tabs{display:flex;background:var(--bg);border-bottom:0.5px solid var(--border);position:sticky;top:57px;z-index:99}
-.tab{flex:1;padding:10px 4px;font-size:12px;text-align:center;cursor:pointer;border:none;background:transparent;color:var(--text2);border-bottom:2px solid transparent}
-.tab.active{color:var(--text);border-bottom:2px solid var(--text);font-weight:500}
-.section{display:none;padding:12px 14px}.section.active{display:block}
-.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
-.metric{background:var(--bg2);border-radius:var(--radius);padding:12px}
-.metric-label{font-size:11px;color:var(--text2);margin-bottom:4px}
-.metric-value{font-size:18px;font-weight:500}
-.pos{color:var(--pos)}.neg{color:var(--neg)}.neu{color:var(--text2)}
-.card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin-bottom:12px}
-.card-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th{text-align:left;padding:5px 6px;font-size:10px;font-weight:600;color:var(--text2);border-bottom:0.5px solid var(--border);white-space:nowrap}
-td{padding:7px 6px;border-bottom:0.5px solid var(--border);font-size:12px;white-space:nowrap}
-tr:last-child td{border-bottom:none}
-tr.group-row td{background:var(--bg2);font-weight:600}
-.form-group{margin-bottom:12px}
-.form-group label{display:block;font-size:12px;color:var(--text2);margin-bottom:5px}
-.form-group input,.form-group select{width:100%;padding:10px 12px;font-size:14px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);-webkit-appearance:none}
-.form-group input:focus,.form-group select:focus{outline:none;border-color:var(--text)}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.btn{padding:10px 20px;font-size:14px;cursor:pointer;border-radius:var(--radius);font-weight:500;width:100%}
-.btn-primary{background:var(--text);color:var(--bg);border:none;margin-top:4px}
-.btn-secondary{background:transparent;border:0.5px solid var(--border2);color:var(--text);margin-top:4px}
-.btn-danger{background:transparent;border:0.5px solid var(--border);color:var(--neg);padding:4px 10px;font-size:11px;width:auto;border-radius:var(--radius)}
-.date-scroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:10px;scrollbar-width:none}
-.date-scroll::-webkit-scrollbar{display:none}
-.date-badge{flex-shrink:0;font-size:11px;background:var(--bg2);padding:5px 10px;border-radius:20px;cursor:pointer;border:0.5px solid var(--border);color:var(--text2);white-space:nowrap}
-.date-badge.active{background:var(--text);color:var(--bg);border-color:var(--text)}
-.cat-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
-.cat-badge{font-size:11px;padding:4px 10px;border-radius:20px;cursor:pointer;border:0.5px solid var(--border);color:var(--text2);background:var(--bg2)}
-.chart-wrap{position:relative;width:100%;height:220px;margin-top:4px}
-.legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;font-size:11px;color:var(--text2)}
-.legend span{display:flex;align-items:center;gap:4px}
-.legend-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
-.empty{text-align:center;padding:32px 16px;color:var(--text2);font-size:13px;line-height:1.6}
-.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:9px 18px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;white-space:nowrap}
-.toast.show{opacity:1}
-.section-label{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 8px}
-.divider{height:0.5px;background:var(--border);margin:14px 0}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>투자 현황 관리</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            background: #f9f9f9;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-button:hover {
+            background: #f0f0f0;
+        }
+
+        .tab-button.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: white;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 30px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* 날짜 범위 선택기 */
+        .date-range-filter {
+            background: #f5f7fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .date-range-filter label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .date-range-filter input[type="date"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .date-range-filter input[type="date"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .date-range-filter button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .date-range-filter button:hover {
+            background: #764ba2;
+        }
+
+        .date-range-filter button:active {
+            transform: scale(0.98);
+        }
+
+        .reset-btn {
+            background: #999 !important;
+        }
+
+        .reset-btn:hover {
+            background: #777 !important;
+        }
+
+        /* 대시보드 */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .card.alt {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .card.alt2 {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .card.alt3 {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .card-label {
+            font-size: 13px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .card-subtitle {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 8px;
+        }
+
+        /* 차트 */
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        /* 입력 폼 */
+        .input-form {
+            background: #f5f7fa;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background: #764ba2;
+        }
+
+        /* 데이터 표 */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .data-table thead {
+            background: #f5f7fa;
+        }
+
+        .data-table th {
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .data-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .data-table tbody tr:hover {
+            background: #f9f9f9;
+        }
+
+        /* 정보 박스 */
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #1565c0;
+        }
+
+        .date-range-info {
+            background: #f3e5f5;
+            border-left: 4px solid #667eea;
+            padding: 12px 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #512da8;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .date-range-filter {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+            }
+
+            .tab-button {
+                flex: 1 1 50%;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <div class="header">
+            <h1>📈 투자 현황 관리</h1>
+            <p>포트폴리오 성과를 한눈에 파악하세요</p>
+        </div>
 
-<div class="header">
-  <h1>📈 투자 현황 관리</h1>
-  <p id="header-date">로딩 중...</p>
-</div>
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('dashboard')">대시보드</button>
+            <button class="tab-button" onclick="switchTab('input')">데이터 입력</button>
+            <button class="tab-button" onclick="switchTab('records')">기록</button>
+            <button class="tab-button" onclick="switchTab('charts')">차트</button>
+        </div>
 
-<div class="tabs">
-  <button class="tab active" onclick="switchTab('dashboard')">대시보드</button>
-  <button class="tab" onclick="switchTab('entry')">입력</button>
-  <button class="tab" onclick="switchTab('history')">기록</button>
-  <button class="tab" onclick="switchTab('chart')">차트</button>
-</div>
+        <!-- 대시보드 탭 -->
+        <div id="dashboard" class="tab-content active">
+            <div class="date-range-filter">
+                <div>
+                    <label for="startDate">시작일</label>
+                    <input type="date" id="startDate">
+                </div>
+                <div>
+                    <label for="endDate">종료일</label>
+                    <input type="date" id="endDate">
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="applyDateFilter()">조회</button>
+                    <button class="reset-btn" onclick="resetDateFilter()">초기화</button>
+                </div>
+            </div>
 
-<div id="tab-dashboard" class="section active">
-  <div id="metrics" class="metric-grid"></div>
-  <div class="card">
-    <div class="card-title">항목별 현황</div>
-    <div id="latest-table"></div>
-  </div>
-</div>
+            <div id="dateRangeInfo" class="date-range-info" style="display: none;"></div>
 
-<div id="tab-entry" class="section">
-  <div class="card">
-    <div class="card-title">새 데이터 입력</div>
-    <div class="form-group">
-      <label>날짜</label>
-      <input type="date" id="entry-date">
+            <div class="dashboard">
+                <div class="card">
+                    <div class="card-label">총 투입금</div>
+                    <div class="card-value" id="totalInvested">₩0</div>
+                    <div class="card-subtitle">누적 투자액</div>
+                </div>
+                <div class="card alt">
+                    <div class="card-label">현재 평가금</div>
+                    <div class="card-value" id="currentValue">₩0</div>
+                    <div class="card-subtitle">포트폴리오 가치</div>
+                </div>
+                <div class="card alt2">
+                    <div class="card-label">평가 손익</div>
+                    <div class="card-value" id="gainLoss">₩0</div>
+                    <div class="card-subtitle" id="gainLossPercent">+0.00%</div>
+                </div>
+                <div class="card alt3">
+                    <div class="card-label">수익률</div>
+                    <div class="card-value" id="returnRate">0.00%</div>
+                    <div class="card-subtitle">누적 수익률</div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">📊 자산 비중 현황</div>
+                <canvas id="portfolioChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">📈 평가금액 추이</div>
+                <canvas id="valueChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 데이터 입력 탭 -->
+        <div id="input" class="tab-content">
+            <div class="input-form">
+                <h2 style="margin-bottom: 20px;">새 데이터 입력</h2>
+                <div class="form-group">
+                    <label>날짜</label>
+                    <input type="date" id="inputDate">
+                </div>
+                <div class="form-group">
+                    <label>항목</label>
+                    <select id="inputCategory">
+                        <option value="">선택하세요</option>
+                        <option value="연금저축">연금저축</option>
+                        <option value="ISA">ISA</option>
+                        <option value="IRP">IRP</option>
+                        <option value="연금 소계">연금 소계</option>
+                        <option value="김시온">김시온</option>
+                        <option value="김로아">김로아</option>
+                        <option value="펀드">펀드</option>
+                        <option value="주식">주식</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>투입금액 (원)</label>
+                        <input type="number" id="inputAmount" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>평가금액 (원)</label>
+                        <input type="number" id="inputValue" placeholder="0">
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="saveData()">저장</button>
+            </div>
+
+            <div style="background: #f5f7fa; padding: 20px; border-radius: 8px; margin-top: 25px;">
+                <h3 style="margin-bottom: 15px;">📥 데이터 관리</h3>
+                <button class="btn-primary" onclick="exportData()" style="background: #43e97b; margin-bottom: 10px;">📥 데이터 내보내기 (JSON)</button>
+                <button class="btn-primary" onclick="document.getElementById('importFile').click()" style="background: #4facfe;">📤 데이터 불러오기 (JSON)</button>
+                <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData(event)">
+            </div>
+        </div>
+
+        <!-- 기록 탭 -->
+        <div id="records" class="tab-content">
+            <div class="info-box">
+                💡 모든 기록 데이터가 브라우저 로컬스토리지에 저장됩니다
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>날짜</th>
+                        <th>항목</th>
+                        <th>투입금액</th>
+                        <th>평가금액</th>
+                        <th>손익</th>
+                        <th>삭제</th>
+                    </tr>
+                </thead>
+                <tbody id="recordsTable">
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: #999;">
+                            데이터가 없습니다. 데이터 입력 탭에서 추가하세요.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 차트 탭 -->
+        <div id="charts" class="tab-content">
+            <div class="chart-container">
+                <div class="chart-title">수익률 추이 (%)</div>
+                <canvas id="returnChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">항목별 투입금액 비교</div>
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
     </div>
-    <div class="form-group">
-      <label>항목</label>
-      <select id="entry-cat">
-        <option>연금저축</option>
-        <option>ISA</option>
-        <option>IRP</option>
-        <option>김시온</option>
-        <option>김로아</option>
-        <option>펀드</option>
-        <option>주식</option>
-      </select>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>투입금액 (원)</label>
-        <input type="number" id="entry-invested" placeholder="28000000">
-      </div>
-      <div class="form-group">
-        <label>평가금액 (원)</label>
-        <input type="number" id="entry-eval" placeholder="37000000">
-      </div>
-    </div>
-    <button class="btn btn-primary" onclick="addEntry()">저장</button>
-  </div>
 
-  <div class="card">
-    <div class="card-title">기존 데이터 불러오기</div>
-    <p style="font-size:12px;color:var(--text2);margin-bottom:10px">구글시트 기반 데이터(2025년 4월~6월)를 불러옵니다.</p>
-    <button class="btn btn-secondary" onclick="loadSampleData()">기존 데이터 불러오기</button>
-  </div>
+    <script>
+        // ====== 전역 변수 ======
+        let allData = [];
+        let filteredData = [];
+        let dateFilter = { start: null, end: null };
 
-  <div class="card">
-    <div class="card-title">데이터 백업 / 복원</div>
-    <p style="font-size:12px;color:var(--text2);margin-bottom:10px">데이터를 JSON 파일로 내보내거나 불러올 수 있습니다.</p>
-    <div class="form-row">
-      <button class="btn btn-secondary" onclick="exportData()">내보내기</button>
-      <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">불러오기</button>
-    </div>
-    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
-  </div>
-</div>
+        // ====== 초기화 ======
+        function init() {
+            loadData();
+            // localStorage가 비어있으면 기본 데이터 로드
+            if (allData.length === 0) {
+                loadDefaultData();
+            }
+            setDefaultDates();
+            updateAllDisplays();
+        }
 
-<div id="tab-history" class="section">
-  <div class="date-scroll" id="date-filter"></div>
-  <div class="card">
-    <div class="card-title">기록 목록</div>
-    <div id="history-table"></div>
-  </div>
-</div>
+        // ====== 기본 데이터 로드 (처음 한 번만) ======
+        function loadDefaultData() {
+            const defaultData = [
+  {"date": "2024-04-21", "category": "연금저축", "amount": 28079895, "value": 37661250, "id": 1},
+  {"date": "2024-04-21", "category": "ISA", "amount": 8062393, "value": 10367023, "id": 2},
+  {"date": "2024-04-21", "category": "IRP", "amount": 55032180, "value": 69609439, "id": 3},
+  {"date": "2024-04-21", "category": "연금 소계", "amount": 91213028, "value": 117637712, "id": 4},
+  {"date": "2024-04-21", "category": "김시온", "amount": 10600000, "value": 19411897, "id": 5},
+  {"date": "2024-04-21", "category": "김로아", "amount": 3000000, "value": 2848046, "id": 6},
+  {"date": "2024-04-21", "category": "펀드", "amount": 38560, "value": 45128, "id": 7},
+  {"date": "2024-04-21", "category": "주식", "amount": 21063860, "value": 24241238, "id": 8},
+  {"date": "2024-04-22", "category": "연금저축", "amount": 28079895, "value": 38415638, "id": 9},
+  {"date": "2024-04-22", "category": "ISA", "amount": 8062393, "value": 10693058, "id": 10},
+  {"date": "2024-04-22", "category": "IRP", "amount": 55032180, "value": 70349837, "id": 11},
+  {"date": "2024-04-22", "category": "연금 소계", "amount": 91213028, "value": 119458533, "id": 12},
+  {"date": "2024-04-22", "category": "김시온", "amount": 10600000, "value": 19604017, "id": 13},
+  {"date": "2024-04-22", "category": "김로아", "amount": 3000000, "value": 2820086, "id": 14},
+  {"date": "2024-04-22", "category": "펀드", "amount": 38560, "value": 45027, "id": 15},
+  {"date": "2024-04-22", "category": "주식", "amount": 21063860, "value": 24297156, "id": 16},
+  {"date": "2024-04-23", "category": "연금저축", "amount": 28079895, "value": 38751998, "id": 17},
+  {"date": "2024-04-23", "category": "ISA", "amount": 8062393, "value": 10654988, "id": 18},
+  {"date": "2024-04-23", "category": "IRP", "amount": 55032180, "value": 70729389, "id": 19},
+  {"date": "2024-04-23", "category": "연금 소계", "amount": 91213028, "value": 120136375, "id": 20},
+  {"date": "2024-04-23", "category": "김시온", "amount": 10600000, "value": 19312867, "id": 21},
+  {"date": "2024-04-23", "category": "김로아", "amount": 3000000, "value": 2808815, "id": 22},
+  {"date": "2024-04-23", "category": "펀드", "amount": 38560, "value": 44801, "id": 23},
+  {"date": "2024-04-23", "category": "주식", "amount": 21063860, "value": 24363038, "id": 24},
+  {"date": "2024-04-24", "category": "연금저축", "amount": 28079895, "value": 38752408, "id": 25},
+  {"date": "2024-04-24", "category": "ISA", "amount": 8062393, "value": 10834483, "id": 26},
+  {"date": "2024-04-24", "category": "IRP", "amount": 55032180, "value": 70986137, "id": 27},
+  {"date": "2024-04-24", "category": "연금 소계", "amount": 91213028, "value": 120573028, "id": 28},
+  {"date": "2024-04-24", "category": "김시온", "amount": 10600000, "value": 19727802, "id": 29},
+  {"date": "2024-04-24", "category": "김로아", "amount": 3000000, "value": 2802990, "id": 30},
+  {"date": "2024-04-24", "category": "펀드", "amount": 38560, "value": 45188, "id": 31},
+  {"date": "2024-04-24", "category": "주식", "amount": 21063860, "value": 24634115, "id": 32},
+  {"date": "2024-04-27", "category": "연금저축", "amount": 28079895, "value": 39480290, "id": 33},
+  {"date": "2024-04-27", "category": "ISA", "amount": 8092393, "value": 11155299, "id": 34},
+  {"date": "2024-04-27", "category": "IRP", "amount": 55032180, "value": 71626909, "id": 35},
+  {"date": "2024-04-27", "category": "연금 소계", "amount": 91243028, "value": 122262498, "id": 36},
+  {"date": "2024-04-27", "category": "김시온", "amount": 10600000, "value": 20431630, "id": 37},
+  {"date": "2024-04-27", "category": "김로아", "amount": 3000000, "value": 2802990, "id": 38},
+  {"date": "2024-04-27", "category": "펀드", "amount": 38560, "value": 45158, "id": 39},
+  {"date": "2024-04-27", "category": "주식", "amount": 21063860, "value": 24914155, "id": 40},
+  {"date": "2024-04-28", "category": "연금저축", "amount": 28079895, "value": 39575009, "id": 41},
+  {"date": "2024-04-28", "category": "ISA", "amount": 8092393, "value": 11170524, "id": 42},
+  {"date": "2024-04-28", "category": "IRP", "amount": 55032180, "value": 72255259, "id": 43},
+  {"date": "2024-04-28", "category": "연금 소계", "amount": 91243028, "value": 123000792, "id": 44},
+  {"date": "2024-04-28", "category": "김시온", "amount": 10600000, "value": 20549274, "id": 45},
+  {"date": "2024-04-28", "category": "김로아", "amount": 3000000, "value": 2795911, "id": 46},
+  {"date": "2024-04-28", "category": "펀드", "amount": 38560, "value": 45232, "id": 47},
+  {"date": "2024-04-28", "category": "주식", "amount": 21063860, "value": 24764018, "id": 48},
+  {"date": "2024-04-29", "category": "연금저축", "amount": 28079895, "value": 39664749, "id": 49},
+  {"date": "2024-04-29", "category": "ISA", "amount": 8092393, "value": 11051984, "id": 50},
+  {"date": "2024-04-29", "category": "IRP", "amount": 55032180, "value": 71864456, "id": 51},
+  {"date": "2024-04-29", "category": "연금 소계", "amount": 91243028, "value": 122581189, "id": 52},
+  {"date": "2024-04-29", "category": "김시온", "amount": 10600000, "value": 20790372, "id": 53},
+  {"date": "2024-04-29", "category": "김로아", "amount": 3000000, "value": 2837911, "id": 54},
+  {"date": "2024-04-29", "category": "펀드", "amount": 38560, "value": 45254, "id": 55},
+  {"date": "2024-04-29", "category": "주식", "amount": 21063860, "value": 25005632, "id": 56},
+  {"date": "2024-04-30", "category": "연금저축", "amount": 28079895, "value": 39412579, "id": 57},
+  {"date": "2024-04-30", "category": "ISA", "amount": 8092393, "value": 11030189, "id": 58},
+  {"date": "2024-04-30", "category": "IRP", "amount": 55032180, "value": 71681383, "id": 59},
+  {"date": "2024-04-30", "category": "연금 소계", "amount": 91243028, "value": 122124151, "id": 60},
+  {"date": "2024-04-30", "category": "김시온", "amount": 10600000, "value": 20196372, "id": 61},
+  {"date": "2024-04-30", "category": "김로아", "amount": 3000000, "value": 2807911, "id": 62},
+  {"date": "2024-04-30", "category": "펀드", "amount": 38560, "value": 45196, "id": 63},
+  {"date": "2024-04-30", "category": "주식", "amount": 21063860, "value": 24521117, "id": 64},
+  {"date": "2024-05-04", "category": "연금저축", "amount": 28079895, "value": 40847119, "id": 65},
+  {"date": "2024-05-04", "category": "ISA", "amount": 8092393, "value": 11208538, "id": 66},
+  {"date": "2024-05-04", "category": "IRP", "amount": 55032180, "value": 73520092, "id": 67},
+  {"date": "2024-05-04", "category": "연금 소계", "amount": 91243028, "value": 125575749, "id": 68},
+  {"date": "2024-05-04", "category": "김시온", "amount": 10600000, "value": 21354624, "id": 69},
+  {"date": "2024-05-04", "category": "김로아", "amount": 3000000, "value": 2897932, "id": 70},
+  {"date": "2024-05-04", "category": "펀드", "amount": 38560, "value": 45240, "id": 71},
+  {"date": "2024-05-04", "category": "주식", "amount": 21063860, "value": 25925692, "id": 72},
+  {"date": "2024-05-06", "category": "연금저축", "amount": 28079895, "value": 42938407, "id": 73},
+  {"date": "2024-05-06", "category": "ISA", "amount": 8092393, "value": 11444361, "id": 74},
+  {"date": "2024-05-06", "category": "IRP", "amount": 55032180, "value": 76095694, "id": 75},
+  {"date": "2024-05-06", "category": "연금 소계", "amount": 91243028, "value": 130478462, "id": 76},
+  {"date": "2024-05-06", "category": "김시온", "amount": 10600000, "value": 22172151, "id": 77},
+  {"date": "2024-05-06", "category": "김로아", "amount": 3000000, "value": 3359932, "id": 78},
+  {"date": "2024-05-06", "category": "펀드", "amount": 38560, "value": 45437, "id": 79},
+  {"date": "2024-05-06", "category": "주식", "amount": 21063860, "value": 28253210, "id": 80},
+  {"date": "2024-05-07", "category": "연금저축", "amount": 28079895, "value": 43652047, "id": 81},
+  {"date": "2024-05-07", "category": "ISA", "amount": 8092393, "value": 11485591, "id": 82},
+  {"date": "2024-05-07", "category": "IRP", "amount": 55032180, "value": 77708424, "id": 83},
+  {"date": "2024-05-07", "category": "연금 소계", "amount": 91243028, "value": 132846062, "id": 84},
+  {"date": "2024-05-07", "category": "김시온", "amount": 10600000, "value": 22434349, "id": 85},
+  {"date": "2024-05-07", "category": "김로아", "amount": 3000000, "value": 3383932, "id": 86},
+  {"date": "2024-05-07", "category": "펀드", "amount": 38560, "value": 46002, "id": 87},
+  {"date": "2024-05-07", "category": "주식", "amount": 21063860, "value": 28748037, "id": 88},
+  {"date": "2024-05-08", "category": "연금저축", "amount": 28079895, "value": 43868217, "id": 89},
+  {"date": "2024-05-08", "category": "ISA", "amount": 8092393, "value": 11540852, "id": 90},
+  {"date": "2024-05-08", "category": "IRP", "amount": 55032180, "value": 78693160, "id": 91},
+  {"date": "2024-05-08", "category": "연금 소계", "amount": 91243028, "value": 134102229, "id": 92},
+  {"date": "2024-05-08", "category": "김시온", "amount": 10600000, "value": 22770334, "id": 93},
+  {"date": "2024-05-08", "category": "김로아", "amount": 3000000, "value": 3455932, "id": 94},
+  {"date": "2024-05-08", "category": "펀드", "amount": 38560, "value": 46322, "id": 95},
+  {"date": "2024-05-08", "category": "주식", "amount": 21063860, "value": 29229752, "id": 96},
+  {"date": "2024-05-11", "category": "연금저축", "amount": 28079895, "value": 45554810, "id": 97},
+  {"date": "2024-05-11", "category": "ISA", "amount": 8152393, "value": 11780230, "id": 98},
+  {"date": "2024-05-11", "category": "IRP", "amount": 55032180, "value": 80256829, "id": 99},
+  {"date": "2024-05-11", "category": "연금 소계", "amount": 91303028, "value": 137591869, "id": 100},
+  {"date": "2024-05-11", "category": "김시온", "amount": 10600000, "value": 24443473, "id": 101},
+  {"date": "2024-05-11", "category": "김로아", "amount": 3000000, "value": 3563932, "id": 102},
+  {"date": "2024-05-11", "category": "펀드", "amount": 38560, "value": 46459, "id": 103},
+  {"date": "2024-05-11", "category": "주식", "amount": 21085559, "value": 30919648, "id": 104},
+  {"date": "2024-05-12", "category": "연금저축", "amount": 28079895, "value": 45028890, "id": 105},
+  {"date": "2024-05-12", "category": "ISA", "amount": 8152393, "value": 11663325, "id": 106},
+  {"date": "2024-05-12", "category": "IRP", "amount": 55032180, "value": 81073657, "id": 107},
+  {"date": "2024-05-12", "category": "연금 소계", "amount": 91303028, "value": 137765872, "id": 108},
+  {"date": "2024-05-12", "category": "김시온", "amount": 10600000, "value": 23830457, "id": 109},
+  {"date": "2024-05-12", "category": "김로아", "amount": 3000000, "value": 3407932, "id": 110},
+  {"date": "2024-05-12", "category": "펀드", "amount": 38560, "value": 46849, "id": 111},
+  {"date": "2024-05-12", "category": "주식", "amount": 21085559, "value": 30025805, "id": 112},
+  {"date": "2024-05-13", "category": "연금저축", "amount": 28079895, "value": 46009680, "id": 113},
+  {"date": "2024-05-13", "category": "ISA", "amount": 8152393, "value": 11802900, "id": 114},
+  {"date": "2024-05-13", "category": "IRP", "amount": 55032180, "value": 82301819, "id": 115},
+  {"date": "2024-05-13", "category": "연금 소계", "amount": 91303028, "value": 140114399, "id": 116},
+  {"date": "2024-05-13", "category": "김시온", "amount": 10600000, "value": 24578857, "id": 117},
+  {"date": "2024-05-13", "category": "김로아", "amount": 3000000, "value": 3575932, "id": 118},
+  {"date": "2024-05-13", "category": "펀드", "amount": 38560, "value": 47328, "id": 119},
+  {"date": "2024-05-13", "category": "주식", "amount": 21085559, "value": 31148195, "id": 120},
+  {"date": "2024-05-14", "category": "연금저축", "amount": 28079895, "value": 46267340, "id": 121},
+  {"date": "2024-05-14", "category": "ISA", "amount": 8152393, "value": 11878695, "id": 122},
+  {"date": "2024-05-14", "category": "IRP", "amount": 55032180, "value": 82065781, "id": 123},
+  {"date": "2024-05-14", "category": "연금 소계", "amount": 91303028, "value": 140211816, "id": 124},
+  {"date": "2024-05-14", "category": "김시온", "amount": 10600000, "value": 24880057, "id": 125},
+  {"date": "2024-05-14", "category": "김로아", "amount": 3000000, "value": 3653932, "id": 126},
+  {"date": "2024-05-14", "category": "펀드", "amount": 38560, "value": 47417, "id": 127},
+  {"date": "2024-05-14", "category": "주식", "amount": 21085559, "value": 31517220, "id": 128},
+  {"date": "2024-05-21", "category": "연금저축", "amount": 29079895, "value": 47095914, "id": 129},
+  {"date": "2024-05-21", "category": "ISA", "amount": 8652393, "value": 12094716, "id": 130},
+  {"date": "2024-05-21", "category": "IRP", "amount": 56032180, "value": 82073806, "id": 131},
+  {"date": "2024-05-21", "category": "연금 소계", "amount": 93803028, "value": 141264436, "id": 132},
+  {"date": "2024-05-21", "category": "김시온", "amount": 10600000, "value": 24294600, "id": 133},
+  {"date": "2024-05-21", "category": "김로아", "amount": 3000000, "value": 3668975, "id": 134},
+  {"date": "2024-05-21", "category": "펀드", "amount": 38560, "value": 46989, "id": 135},
+  {"date": "2024-05-21", "category": "주식", "amount": 18585559, "value": 28841467, "id": 136},
+  {"date": "2024-05-22", "category": "연금저축", "amount": 29079895, "value": 47257544, "id": 137},
+  {"date": "2024-05-22", "category": "ISA", "amount": 8652393, "value": 12303561, "id": 138},
+  {"date": "2024-05-22", "category": "IRP", "amount": 56032180, "value": 83025648, "id": 139},
+  {"date": "2024-05-22", "category": "연금 소계", "amount": 93803028, "value": 142586753, "id": 140},
+  {"date": "2024-05-22", "category": "김시온", "amount": 10600000, "value": 24368062, "id": 141},
+  {"date": "2024-05-22", "category": "김로아", "amount": 3000000, "value": 3638975, "id": 142},
+  {"date": "2024-05-22", "category": "펀드", "amount": 38560, "value": 47244, "id": 143},
+  {"date": "2024-05-22", "category": "주식", "amount": 18585559, "value": 28974787, "id": 144},
+  {"date": "2024-05-26", "category": "연금저축", "amount": 29079895, "value": 48202384, "id": 145},
+  {"date": "2024-05-26", "category": "ISA", "amount": 8692393, "value": 12501723, "id": 146},
+  {"date": "2024-05-26", "category": "IRP", "amount": 56032180, "value": 84837119, "id": 147},
+  {"date": "2024-05-26", "category": "연금 소계", "amount": 93843028, "value": 145541226, "id": 148},
+  {"date": "2024-05-26", "category": "김시온", "amount": 10600000, "value": 24298428, "id": 149},
+  {"date": "2024-05-26", "category": "김로아", "amount": 3000000, "value": 3740975, "id": 150},
+  {"date": "2024-05-26", "category": "펀드", "amount": 38560, "value": 47409, "id": 151},
+  {"date": "2024-05-26", "category": "주식", "amount": 18585559, "value": 28930694, "id": 152},
+  {"date": "2024-05-27", "category": "연금저축", "amount": 29079895, "value": 49507744, "id": 153},
+  {"date": "2024-05-27", "category": "ISA", "amount": 8692393, "value": 12220495, "id": 154},
+  {"date": "2024-05-27", "category": "IRP", "amount": 56032180, "value": 86403614, "id": 155},
+  {"date": "2024-05-27", "category": "연금 소계", "amount": 93843028, "value": 148131853, "id": 156},
+  {"date": "2024-05-27", "category": "김시온", "amount": 10600000, "value": 23905529, "id": 157},
+  {"date": "2024-05-27", "category": "김로아", "amount": 3000000, "value": 3896975, "id": 158},
+  {"date": "2024-05-27", "category": "펀드", "amount": 38560, "value": 47323, "id": 159},
+  {"date": "2024-05-27", "category": "주식", "amount": 18585559, "value": 28510098, "id": 160},
+  {"date": "2024-05-29", "category": "연금저축", "amount": 29079895, "value": 50179284, "id": 161},
+  {"date": "2024-05-29", "category": "ISA", "amount": 8742393, "value": 11888098, "id": 162},
+  {"date": "2024-05-29", "category": "IRP", "amount": 56032180, "value": 87319736, "id": 163},
+  {"date": "2024-05-29", "category": "연금 소계", "amount": 93893028, "value": 149387118, "id": 164},
+  {"date": "2024-05-29", "category": "김시온", "amount": 10600000, "value": 23305529, "id": 165},
+  {"date": "2024-05-29", "category": "김로아", "amount": 3000000, "value": 3945643, "id": 166},
+  {"date": "2024-05-29", "category": "펀드", "amount": 38560, "value": 47973, "id": 167},
+  {"date": "2024-05-29", "category": "주식", "amount": 18585559, "value": 27951194, "id": 168},
+  {"date": "2024-06-01", "category": "연금저축", "amount": 29079895, "value": 51917962, "id": 169},
+  {"date": "2024-06-01", "category": "ISA", "amount": 8742393, "value": 11919960, "id": 170},
+  {"date": "2024-06-01", "category": "IRP", "amount": 56032180, "value": 89772621, "id": 171},
+  {"date": "2024-06-01", "category": "연금 소계", "amount": 93893028, "value": 153610543, "id": 172},
+  {"date": "2024-06-01", "category": "김시온", "amount": 10600000, "value": 24888671, "id": 173},
+  {"date": "2024-06-01", "category": "김로아", "amount": 3000000, "value": 4383643, "id": 174},
+  {"date": "2024-06-01", "category": "펀드", "amount": 38560, "value": 48327, "id": 175},
+  {"date": "2024-06-01", "category": "주식", "amount": 18585559, "value": 29498628, "id": 176}
+            ];
+            allData = defaultData;
+            filteredData = [...allData];
+            saveToLocalStorage();
+            console.log('기본 데이터가 로드되었습니다. (' + allData.length + '개 항목)');
+        }
 
-<div id="tab-chart" class="section">
-  <div class="card">
-    <div class="card-title">항목 선택</div>
-    <div class="cat-wrap" id="cat-filter"></div>
-  </div>
-  <div class="card">
-    <div class="card-title">평가금액 추이</div>
-    <div class="legend" id="legend-eval"></div>
-    <div class="chart-wrap"><canvas id="chartEval" role="img" aria-label="항목별 평가금액 추이"></canvas></div>
-  </div>
-  <div class="card">
-    <div class="card-title">수익률 추이 (%)</div>
-    <div class="legend" id="legend-ret"></div>
-    <div class="chart-wrap"><canvas id="chartRet" role="img" aria-label="항목별 수익률 추이"></canvas></div>
-  </div>
-  <div class="card">
-    <div class="card-title">자산 비중 (최신)</div>
-    <div class="legend" id="legend-pie"></div>
-    <div style="position:relative;width:100%;height:220px"><canvas id="chartPie" role="img" aria-label="항목별 자산 비중"></canvas></div>
-  </div>
-</div>
+        // ====== 날짜 설정 ======
+        function setDefaultDates() {
+            const today = new Date();
+            const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
+            
+            document.getElementById('startDate').valueAsDate = oneYearAgo;
+            document.getElementById('endDate').valueAsDate = today;
+        }
 
-<div class="toast" id="toast"></div>
+        // ====== 날짜 필터 적용 ======
+        function applyDateFilter() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
 
-<script>
-const CATS=['연금저축','ISA','IRP','김시온','김로아','펀드','주식'];
-const PENSION=['연금저축','ISA','IRP'];
-const COLORS=['#534AB7','#1D9E75','#185FA5','#D85A30','#BA7517','#639922','#D4537E'];
+            if (!startDate || !endDate) {
+                alert('시작일과 종료일을 모두 선택하세요.');
+                return;
+            }
 
-let data=[];
-let selectedCats=[...CATS];
-let chartEval=null,chartRet=null,chartPie=null;
+            dateFilter.start = new Date(startDate);
+            dateFilter.end = new Date(endDate);
 
-function fmt(n){return n==null?'-':Math.round(n).toLocaleString('ko-KR')+'원'}
-function fmtShort(n){if(n==null)return'-';if(Math.abs(n)>=1e8)return (n/1e8).toFixed(1)+'억';if(Math.abs(n)>=1e4)return (n/1e4).toFixed(0)+'만';return Math.round(n).toLocaleString();}
-function fmtPct(n){if(n==null)return'-';return(n>=0?'+':'')+n.toFixed(1)+'%'}
-function calcRet(inv,ev){if(!inv||inv===0)return null;return(ev-inv)/inv*100}
-function getEntry(date,cat){return data.find(d=>d.date===date&&d.cat===cat)}
-function getDates(){return[...new Set(data.map(d=>d.date))].sort()}
-function getLatest(){const dd=getDates();return dd[dd.length-1]}
+            // 종료일에 하루 더하기 (종료일 포함)
+            dateFilter.end.setDate(dateFilter.end.getDate() + 1);
 
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
+            filterDataByDate();
+            showDateRangeInfo();
+            updateAllDisplays();
+        }
 
-function switchTab(t){
-  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['dashboard','entry','history','chart'][i]===t));
-  document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
-  document.getElementById('tab-'+t).classList.add('active');
-  if(t==='dashboard')renderDashboard();
-  if(t==='history')renderHistory();
-  if(t==='chart')renderCharts();
-}
+        // ====== 날짜 필터 초기화 ======
+        function resetDateFilter() {
+            dateFilter = { start: null, end: null };
+            filteredData = [...allData];
+            document.getElementById('dateRangeInfo').style.display = 'none';
+            setDefaultDates();
+            applyDateFilter();
+        }
 
-function renderDashboard(){
-  const latest=getLatest();
-  const d=document.getElementById('header-date');
-  if(!latest){
-    d.textContent='데이터 없음';
-    document.getElementById('metrics').innerHTML='<div style="grid-column:1/-1"><p class="empty">데이터가 없습니다.<br>입력 탭에서 추가하거나<br>기존 데이터를 불러오세요.</p></div>';
-    document.getElementById('latest-table').innerHTML='';return;
-  }
-  d.textContent='기준: '+latest;
-  const prev=getDates().slice(-2)[0];
-  let totalEval=0,totalInv=0,prevTotal=0;
-  CATS.forEach(c=>{
-    const e=getEntry(latest,c);if(e){totalEval+=e.eval;totalInv+=e.invested}
-    if(prev){const p=getEntry(prev,c);if(p)prevTotal+=p.eval}
-  });
-  const ret=calcRet(totalInv,totalEval);
-  const profit=totalEval-totalInv;
-  const chg=prevTotal>0?(totalEval-prevTotal)/prevTotal*100:null;
-  const chgAmt=prevTotal>0?totalEval-prevTotal:null;
+        // ====== 데이터 날짜별 필터링 ======
+        function filterDataByDate() {
+            if (!dateFilter.start || !dateFilter.end) {
+                filteredData = [...allData];
+                return;
+            }
 
-  document.getElementById('metrics').innerHTML=`
-    <div class="metric"><div class="metric-label">총 평가금액</div><div class="metric-value" style="font-size:15px">${fmtShort(totalEval)}원</div></div>
-    <div class="metric"><div class="metric-label">총 수익률</div><div class="metric-value"><span class="${ret>=0?'pos':'neg'}">${fmtPct(ret)}</span></div></div>
-    <div class="metric"><div class="metric-label">총 수익금</div><div class="metric-value" style="font-size:14px"><span class="${profit>=0?'pos':'neg'}">${fmtShort(profit)}원</span></div></div>
-    <div class="metric"><div class="metric-label">전회 대비</div><div class="metric-value"><span class="${chg!=null&&chg>=0?'pos':chg!=null?'neg':'neu'}">${chg!=null?fmtPct(chg):'-'}</span></div></div>
-  `;
+            filteredData = allData.filter(item => {
+                const itemDate = new Date(item.date);
+                return itemDate >= dateFilter.start && itemDate < dateFilter.end;
+            });
+        }
 
-  let pensionEval=0,pensionInv=0;
-  PENSION.forEach(c=>{const e=getEntry(latest,c);if(e){pensionEval+=e.eval;pensionInv+=e.invested}});
+        // ====== 날짜 범위 정보 표시 ======
+        function showDateRangeInfo() {
+            const infoBox = document.getElementById('dateRangeInfo');
+            const startStr = dateFilter.start.toLocaleDateString('ko-KR');
+            const endStr = new Date(dateFilter.end.getTime() - 86400000).toLocaleDateString('ko-KR');
+            infoBox.textContent = `📅 조회 기간: ${startStr} ~ ${endStr} (${filteredData.length}개 항목)`;
+            infoBox.style.display = 'block';
+        }
 
-  let rows='';
-  CATS.forEach(c=>{
-    const e=getEntry(latest,c);if(!e)return;
-    const r=calcRet(e.invested,e.eval);
-    rows+=`<tr><td>${c}</td><td style="text-align:right">${fmtShort(e.eval)}</td><td style="text-align:right"><span class="${r>=0?'pos':'neg'}">${fmtPct(r)}</span></td></tr>`;
-  });
-  const pr=calcRet(pensionInv,pensionEval);
-  rows+=`<tr class="group-row"><td>연금소계</td><td style="text-align:right">${fmtShort(pensionEval)}</td><td style="text-align:right"><span class="${pr>=0?'pos':'neg'}">${fmtPct(pr)}</span></td></tr>`;
-  rows+=`<tr class="group-row"><td>총계</td><td style="text-align:right">${fmtShort(totalEval)}</td><td style="text-align:right"><span class="${ret>=0?'pos':'neg'}">${fmtPct(ret)}</span></td></tr>`;
+        // ====== 탭 전환 ======
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
 
-  document.getElementById('latest-table').innerHTML=`<table><thead><tr><th>항목</th><th style="text-align:right">평가금액</th><th style="text-align:right">수익률</th></tr></thead><tbody>${rows}</tbody></table>`;
-}
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
 
-function renderHistory(filterDate='all'){
-  const dates=getDates().reverse();
-  const filterDiv=document.getElementById('date-filter');
-  filterDiv.innerHTML='';
-  const all=document.createElement('span');
-  all.className='date-badge'+(filterDate==='all'?' active':'');
-  all.textContent='전체';all.onclick=()=>renderHistory('all');
-  filterDiv.appendChild(all);
-  dates.forEach(d=>{
-    const b=document.createElement('span');
-    b.className='date-badge'+(filterDate===d?' active':'');
-    b.textContent=d.slice(5);b.onclick=()=>renderHistory(d);
-    filterDiv.appendChild(b);
-  });
-  const filtered=filterDate==='all'?[...data]:data.filter(d=>d.date===filterDate);
-  if(!filtered.length){document.getElementById('history-table').innerHTML='<p class="empty">데이터가 없습니다.</p>';return}
-  const rows=filtered.sort((a,b)=>b.date.localeCompare(a.date)||CATS.indexOf(a.cat)-CATS.indexOf(b.cat))
-    .map(e=>{const r=calcRet(e.invested,e.eval);
-      return`<tr><td>${e.date.slice(5)}<br><span style="color:var(--text2);font-size:10px">${e.cat}</span></td><td style="text-align:right">${fmtShort(e.invested)}</td><td style="text-align:right">${fmtShort(e.eval)}</td><td style="text-align:right"><span class="${r>=0?'pos':'neg'}">${fmtPct(r)}</span></td><td><button class="btn btn-danger" onclick="deleteEntry('${e.date}','${e.cat}')">삭제</button></td></tr>`;
-    }).join('');
-  document.getElementById('history-table').innerHTML=`<table><thead><tr><th>날짜/항목</th><th style="text-align:right">투입</th><th style="text-align:right">평가</th><th style="text-align:right">수익률</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
-}
+            // 차트 업데이트
+            setTimeout(() => {
+                if (tabName === 'charts') {
+                    updateReturnChart();
+                    updateCategoryChart();
+                }
+            }, 100);
+        }
 
-function deleteEntry(date,cat){
-  if(!confirm(`${date} ${cat} 삭제할까요?`))return;
-  data=data.filter(d=>!(d.date===date&&d.cat===cat));
-  saveData();renderHistory();showToast('삭제되었습니다');
-}
+        // ====== 데이터 저장 ======
+        function saveData() {
+            const date = document.getElementById('inputDate').value;
+            const category = document.getElementById('inputCategory').value;
+            const amount = parseInt(document.getElementById('inputAmount').value) || 0;
+            const value = parseInt(document.getElementById('inputValue').value) || 0;
 
-function addEntry(){
-  const date=document.getElementById('entry-date').value;
-  const cat=document.getElementById('entry-cat').value;
-  const inv=parseFloat(document.getElementById('entry-invested').value);
-  const ev=parseFloat(document.getElementById('entry-eval').value);
-  if(!date||!inv||!ev){showToast('모든 항목을 입력해주세요');return}
-  data=data.filter(d=>!(d.date===date&&d.cat===cat));
-  data.push({date,cat,invested:inv,eval:ev});
-  saveData();
-  document.getElementById('entry-invested').value='';
-  document.getElementById('entry-eval').value='';
-  showToast('저장되었습니다!');
-  renderDashboard();
-}
+            if (!date || !category) {
+                alert('날짜와 항목을 선택하세요.');
+                return;
+            }
 
-function renderCharts(){
-  renderCatFilter();
-  if(!chartEval){
-    const isDark=matchMedia('(prefers-color-scheme:dark)').matches;
-    const gridColor=isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.06)';
-    const textColor=isDark?'#aaa':'#888';
-    const baseOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:textColor,font:{size:10}},grid:{color:gridColor}},y:{ticks:{color:textColor,font:{size:10}},grid:{color:gridColor}}}};
-    chartEval=new Chart(document.getElementById('chartEval'),{type:'line',data:{labels:[],datasets:[]},options:{...baseOpts,scales:{...baseOpts.scales,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>(v/1e8).toFixed(1)+'억'}}}}});
-    chartRet=new Chart(document.getElementById('chartRet'),{type:'line',data:{labels:[],datasets:[]},options:{...baseOpts,scales:{...baseOpts.scales,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>v.toFixed(1)+'%'}}}}});
-    chartPie=new Chart(document.getElementById('chartPie'),{type:'doughnut',data:{labels:[],datasets:[]},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{display:false}}}});
-  }
-  updateCharts();
-}
+            const newEntry = { date, category, amount, value, id: Date.now() };
+            allData.push(newEntry);
+            allData.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-function renderCatFilter(){
-  const div=document.getElementById('cat-filter');div.innerHTML='';
-  CATS.forEach((c,i)=>{
-    const b=document.createElement('span');
-    b.className='cat-badge';b.textContent=c;
-    const col=COLORS[i];
-    if(selectedCats.includes(c)){b.style.background=col;b.style.color='#fff';b.style.borderColor=col;}
-    b.onclick=()=>{
-      if(selectedCats.includes(c))selectedCats=selectedCats.filter(x=>x!==c);
-      else selectedCats.push(c);
-      renderCatFilter();updateCharts();
-    };
-    div.appendChild(b);
-  });
-}
+            saveToLocalStorage();
+            filterDataByDate();
+            updateAllDisplays();
 
-function updateCharts(){
-  const dates=getDates();
-  if(!dates.length||!chartEval)return;
-  const dateLabels=dates.map(d=>d.slice(5));
-  const evalDs=selectedCats.map(c=>({label:c,data:dates.map(d=>{const e=getEntry(d,c);return e?e.eval:null}),borderColor:COLORS[CATS.indexOf(c)],backgroundColor:COLORS[CATS.indexOf(c)]+'30',tension:.3,fill:false,pointRadius:3,borderWidth:2,spanGaps:true}));
-  chartEval.data.labels=dateLabels;chartEval.data.datasets=evalDs;chartEval.update();
-  const retDs=selectedCats.map(c=>({label:c,data:dates.map(d=>{const e=getEntry(d,c);return e?calcRet(e.invested,e.eval):null}),borderColor:COLORS[CATS.indexOf(c)],backgroundColor:COLORS[CATS.indexOf(c)]+'30',tension:.3,fill:false,pointRadius:3,borderWidth:2,spanGaps:true}));
-  chartRet.data.labels=dateLabels;chartRet.data.datasets=retDs;chartRet.update();
-  const latest=getLatest();
-  const pl=[],pd=[],pc=[];
-  CATS.forEach((c,i)=>{const e=getEntry(latest,c);if(e&&selectedCats.includes(c)){pl.push(c);pd.push(e.eval);pc.push(COLORS[i])}});
-  chartPie.data.labels=pl;chartPie.data.datasets=[{data:pd,backgroundColor:pc,borderWidth:1}];chartPie.update();
-  const tot=pd.reduce((a,b)=>a+b,0);
-  document.getElementById('legend-pie').innerHTML=pl.map((l,i)=>`<span><span class="legend-dot" style="background:${pc[i]}"></span>${l} ${tot>0?(pd[i]/tot*100).toFixed(1)+'%':''}</span>`).join('');
-  document.getElementById('legend-eval').innerHTML=selectedCats.map(c=>`<span><span class="legend-dot" style="background:${COLORS[CATS.indexOf(c)]}"></span>${c}</span>`).join('');
-  document.getElementById('legend-ret').innerHTML=document.getElementById('legend-eval').innerHTML;
-}
+            // 폼 초기화
+            document.getElementById('inputDate').value = '';
+            document.getElementById('inputCategory').value = '';
+            document.getElementById('inputAmount').value = '';
+            document.getElementById('inputValue').value = '';
 
-function saveData(){
-  try{localStorage.setItem('portfolio-data',JSON.stringify(data))}catch(e){showToast('저장 실패: '+e.message)}
-}
-function loadData(){
-  try{const r=localStorage.getItem('portfolio-data');if(r)data=JSON.parse(r)}catch(e){}
-  renderDashboard();
-}
+            alert('데이터가 저장되었습니다!');
+        }
 
-function exportData(){
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='portfolio-backup-'+new Date().toISOString().slice(0,10)+'.json';
-  a.click();showToast('백업 파일 다운로드 완료');
-}
-function importData(e){
-  const file=e.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    try{
-      const imported=JSON.parse(ev.target.result);
-      if(!Array.isArray(imported))throw new Error('올바른 형식이 아닙니다');
-      imported.forEach(r=>{data=data.filter(d=>!(d.date===r.date&&d.cat===r.cat));data.push(r)});
-      saveData();renderDashboard();showToast(imported.length+'개 항목 불러오기 완료!');
-    }catch(err){showToast('불러오기 실패: '+err.message)}
-  };
-  reader.readAsText(file);
-  e.target.value='';
-}
+        // ====== 모든 표시 업데이트 ======
+        function updateAllDisplays() {
+            updateDashboard();
+            updateRecordsTable();
+            updateCharts();
+        }
 
-function loadSampleData(){
-  const raw=[
-    {date:'2025-04-21',cat:'연금저축',invested:28079895,eval:37661250},
-    {date:'2025-04-21',cat:'ISA',invested:8062393,eval:10367023},
-    {date:'2025-04-21',cat:'IRP',invested:55032180,eval:69609439},
-    {date:'2025-04-21',cat:'김시온',invested:10600000,eval:19411897},
-    {date:'2025-04-21',cat:'김로아',invested:3000000,eval:2848046},
-    {date:'2025-04-21',cat:'펀드',invested:38560,eval:45128},
-    {date:'2025-04-21',cat:'주식',invested:21063860,eval:24241238},
-    {date:'2025-05-11',cat:'연금저축',invested:28079895,eval:45554810},
-    {date:'2025-05-11',cat:'ISA',invested:8152393,eval:11780230},
-    {date:'2025-05-11',cat:'IRP',invested:55032180,eval:80256829},
-    {date:'2025-05-11',cat:'김시온',invested:10600000,eval:24443473},
-    {date:'2025-05-11',cat:'김로아',invested:3000000,eval:3563932},
-    {date:'2025-05-11',cat:'펀드',invested:38560,eval:46459},
-    {date:'2025-05-11',cat:'주식',invested:21085559,eval:30919648},
-    {date:'2025-05-12',cat:'연금저축',invested:28079895,eval:45028890},
-    {date:'2025-05-12',cat:'ISA',invested:8152393,eval:11663325},
-    {date:'2025-05-12',cat:'IRP',invested:55032180,eval:81073657},
-    {date:'2025-05-12',cat:'김시온',invested:10600000,eval:23830457},
-    {date:'2025-05-12',cat:'김로아',invested:3000000,eval:3407932},
-    {date:'2025-05-12',cat:'펀드',invested:38560,eval:46849},
-    {date:'2025-05-12',cat:'주식',invested:21085559,eval:30025805},
-    {date:'2025-05-13',cat:'연금저축',invested:28079895,eval:46009680},
-    {date:'2025-05-13',cat:'ISA',invested:8152393,eval:11802900},
-    {date:'2025-05-13',cat:'IRP',invested:55032180,eval:82301819},
-    {date:'2025-05-13',cat:'김시온',invested:10600000,eval:24578857},
-    {date:'2025-05-13',cat:'김로아',invested:3000000,eval:3575932},
-    {date:'2025-05-13',cat:'펀드',invested:38560,eval:47328},
-    {date:'2025-05-13',cat:'주식',invested:21085559,eval:31148195},
-    {date:'2025-05-14',cat:'연금저축',invested:28079895,eval:46267340},
-    {date:'2025-05-14',cat:'ISA',invested:8152393,eval:11878695},
-    {date:'2025-05-14',cat:'IRP',invested:55032180,eval:82065781},
-    {date:'2025-05-14',cat:'김시온',invested:10600000,eval:24880057},
-    {date:'2025-05-14',cat:'김로아',invested:3000000,eval:3653932},
-    {date:'2025-05-14',cat:'펀드',invested:38560,eval:47417},
-    {date:'2025-05-14',cat:'주식',invested:21085559,eval:31517220},
-    {date:'2025-05-21',cat:'연금저축',invested:29079895,eval:47095914},
-    {date:'2025-05-21',cat:'ISA',invested:8652393,eval:12094716},
-    {date:'2025-05-21',cat:'IRP',invested:56032180,eval:82073806},
-    {date:'2025-05-21',cat:'김시온',invested:10600000,eval:24294600},
-    {date:'2025-05-21',cat:'김로아',invested:3000000,eval:3668975},
-    {date:'2025-05-21',cat:'펀드',invested:38560,eval:46989},
-    {date:'2025-05-21',cat:'주식',invested:18585559,eval:28841467},
-    {date:'2025-05-22',cat:'연금저축',invested:29079895,eval:47257544},
-    {date:'2025-05-22',cat:'ISA',invested:8652393,eval:12303561},
-    {date:'2025-05-22',cat:'IRP',invested:56032180,eval:83025648},
-    {date:'2025-05-22',cat:'김시온',invested:10600000,eval:24368062},
-    {date:'2025-05-22',cat:'김로아',invested:3000000,eval:3638975},
-    {date:'2025-05-22',cat:'펀드',invested:38560,eval:47244},
-    {date:'2025-05-22',cat:'주식',invested:18585559,eval:28974787},
-    {date:'2025-05-26',cat:'연금저축',invested:29079895,eval:48202384},
-    {date:'2025-05-26',cat:'ISA',invested:8692393,eval:12501723},
-    {date:'2025-05-26',cat:'IRP',invested:56032180,eval:84837119},
-    {date:'2025-05-26',cat:'김시온',invested:10600000,eval:24298428},
-    {date:'2025-05-26',cat:'김로아',invested:3000000,eval:3740975},
-    {date:'2025-05-26',cat:'펀드',invested:38560,eval:47409},
-    {date:'2025-05-26',cat:'주식',invested:18585559,eval:28930694},
-    {date:'2025-05-27',cat:'연금저축',invested:29079895,eval:49507744},
-    {date:'2025-05-27',cat:'ISA',invested:8692393,eval:12220495},
-    {date:'2025-05-27',cat:'IRP',invested:56032180,eval:86403614},
-    {date:'2025-05-27',cat:'김시온',invested:10600000,eval:23905529},
-    {date:'2025-05-27',cat:'김로아',invested:3000000,eval:3896975},
-    {date:'2025-05-27',cat:'펀드',invested:38560,eval:47323},
-    {date:'2025-05-27',cat:'주식',invested:18585559,eval:28510098},
-    {date:'2025-05-29',cat:'연금저축',invested:29079895,eval:50179284},
-    {date:'2025-05-29',cat:'ISA',invested:8742393,eval:11888098},
-    {date:'2025-05-29',cat:'IRP',invested:56032180,eval:87319736},
-    {date:'2025-05-29',cat:'김시온',invested:10600000,eval:23305529},
-    {date:'2025-05-29',cat:'김로아',invested:3000000,eval:3945643},
-    {date:'2025-05-29',cat:'펀드',invested:38560,eval:47973},
-    {date:'2025-05-29',cat:'주식',invested:18585559,eval:27951194},
-    {date:'2025-06-01',cat:'연금저축',invested:29079895,eval:51917962},
-    {date:'2025-06-01',cat:'ISA',invested:8742393,eval:11919960},
-    {date:'2025-06-01',cat:'IRP',invested:56032180,eval:89772621},
-    {date:'2025-06-01',cat:'김시온',invested:10600000,eval:24888671},
-    {date:'2025-06-01',cat:'김로아',invested:3000000,eval:4383643},
-    {date:'2025-06-01',cat:'펀드',invested:38560,eval:48327},
-    {date:'2025-06-01',cat:'주식',invested:18585559,eval:29498628},
-  ];
-  raw.forEach(r=>{data=data.filter(d=>!(d.date===r.date&&d.cat===r.cat));data.push(r)});
-  saveData();showToast('기존 데이터를 불러왔습니다!');renderDashboard();
-}
+        // ====== 대시보드 업데이트 ======
+        function updateDashboard() {
+            if (filteredData.length === 0) {
+                document.getElementById('totalInvested').textContent = '₩0';
+                document.getElementById('currentValue').textContent = '₩0';
+                document.getElementById('gainLoss').textContent = '₩0';
+                document.getElementById('gainLossPercent').textContent = '0.00%';
+                document.getElementById('returnRate').textContent = '0.00%';
+                return;
+            }
 
-document.getElementById('entry-date').value=new Date().toISOString().split('T')[0];
-loadData();
-</script>
+            const totalInvested = filteredData.reduce((sum, item) => sum + item.amount, 0);
+            const currentValue = filteredData.reduce((sum, item) => sum + item.value, 0);
+            const gainLoss = currentValue - totalInvested;
+            const returnRate = totalInvested > 0 ? (gainLoss / totalInvested * 100) : 0;
+
+            document.getElementById('totalInvested').textContent = formatCurrency(totalInvested);
+            document.getElementById('currentValue').textContent = formatCurrency(currentValue);
+            document.getElementById('gainLoss').textContent = formatCurrency(gainLoss);
+            document.getElementById('gainLossPercent').textContent = (gainLoss >= 0 ? '+' : '') + gainLoss.toLocaleString() + '원';
+            document.getElementById('returnRate').textContent = (returnRate >= 0 ? '+' : '') + returnRate.toFixed(2) + '%';
+
+            updatePortfolioChart();
+            updateValueChart();
+        }
+
+        // ====== 기록 테이블 업데이트 ======
+        function updateRecordsTable() {
+            const tbody = document.getElementById('recordsTable');
+            
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #999;">조회된 데이터가 없습니다.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filteredData.map(item => `
+                <tr>
+                    <td>${new Date(item.date).toLocaleDateString('ko-KR')}</td>
+                    <td>${item.category}</td>
+                    <td>${formatCurrency(item.amount)}</td>
+                    <td>${formatCurrency(item.value)}</td>
+                    <td style="color: ${item.value - item.amount >= 0 ? '#43e97b' : '#f5576c'}; font-weight: 600;">
+                        ${(item.value - item.amount >= 0 ? '+' : '')}${formatCurrency(item.value - item.amount)}
+                    </td>
+                    <td><button onclick="deleteData(${item.id})" style="background: #f5576c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">삭제</button></td>
+                </tr>
+            `).join('');
+        }
+
+        // ====== 포트폴리오 원형 차트 ======
+        function updatePortfolioChart() {
+            const ctx = document.getElementById('portfolioChart').getContext('2d');
+            const categories = [...new Set(filteredData.map(item => item.category))];
+            const categoryTotals = categories.map(cat => 
+                filteredData.filter(item => item.category === cat).reduce((sum, item) => sum + item.value, 0)
+            );
+
+            if (window.portfolioChart instanceof Chart) {
+                window.portfolioChart.destroy();
+            }
+
+            window.portfolioChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: categories,
+                    datasets: [{
+                        data: categoryTotals,
+                        backgroundColor: ['#667eea', '#f5576c', '#43e97b', '#4facfe', '#f093fb']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        }
+                    }
+                }
+            });
+        }
+
+        // ====== 평가금액 추이 차트 ======
+        function updateValueChart() {
+            const ctx = document.getElementById('valueChart').getContext('2d');
+            const dates = [...new Set(filteredData.map(item => item.date))].sort();
+            const values = dates.map(date => 
+                filteredData.filter(item => item.date <= date).reduce((sum, item) => sum + item.value, 0)
+            );
+
+            if (window.valueChart instanceof Chart) {
+                window.valueChart.destroy();
+            }
+
+            window.valueChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates.map(d => new Date(d).toLocaleDateString('ko-KR')),
+                    datasets: [{
+                        label: '평가금액',
+                        data: values,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // ====== 수익률 추이 차트 ======
+        function updateReturnChart() {
+            const ctx = document.getElementById('returnChart').getContext('2d');
+            const dates = [...new Set(filteredData.map(item => item.date))].sort();
+            const returns = dates.map(date => {
+                const itemsUntilDate = filteredData.filter(item => item.date <= date);
+                const totalInvested = itemsUntilDate.reduce((sum, item) => sum + item.amount, 0);
+                const totalValue = itemsUntilDate.reduce((sum, item) => sum + item.value, 0);
+                return totalInvested > 0 ? ((totalValue - totalInvested) / totalInvested * 100) : 0;
+            });
+
+            if (window.returnChart instanceof Chart) {
+                window.returnChart.destroy();
+            }
+
+            window.returnChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates.map(d => new Date(d).toLocaleDateString('ko-KR')),
+                    datasets: [{
+                        label: '수익률 (%)',
+                        data: returns,
+                        borderColor: '#f5576c',
+                        backgroundColor: 'rgba(245, 87, 108, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // ====== 항목별 투입금액 차트 ======
+        function updateCategoryChart() {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            const categories = [...new Set(filteredData.map(item => item.category))];
+            const categoryAmounts = categories.map(cat => 
+                filteredData.filter(item => item.category === cat).reduce((sum, item) => sum + item.amount, 0)
+            );
+
+            if (window.categoryChart instanceof Chart) {
+                window.categoryChart.destroy();
+            }
+
+            window.categoryChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: categories,
+                    datasets: [{
+                        label: '투입금액',
+                        data: categoryAmounts,
+                        backgroundColor: ['#667eea', '#f5576c', '#43e97b', '#4facfe', '#f093fb']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // ====== 유틸리티 함수 ======
+        function formatCurrency(value) {
+            return '₩' + value.toLocaleString();
+        }
+
+        function deleteData(id) {
+            if (confirm('정말 삭제하시겠습니까?')) {
+                allData = allData.filter(item => item.id !== id);
+                saveToLocalStorage();
+                filterDataByDate();
+                updateAllDisplays();
+            }
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('portfolioData', JSON.stringify(allData));
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('portfolioData');
+            allData = saved ? JSON.parse(saved) : [];
+            filteredData = [...allData];
+        }
+
+        function exportData() {
+            const dataStr = JSON.stringify(allData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `portfolio_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported)) {
+                        // ID 재생성
+                        imported.forEach(item => {
+                            if (!item.id) item.id = Date.now() + Math.random();
+                        });
+                        allData = imported;
+                        saveToLocalStorage();
+                        filterDataByDate();
+                        updateAllDisplays();
+                        alert('데이터가 불러워졌습니다!');
+                    }
+                } catch (err) {
+                    alert('파일 형식이 올바르지 않습니다.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function updateCharts() {
+            updatePortfolioChart();
+            updateValueChart();
+        }
+
+        // 페이지 로드 시 초기화
+        window.addEventListener('load', init);
+    </script>
 </body>
 </html>
