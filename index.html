@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#ffffff">
+<title>투자 현황 관리</title>
+<link rel="manifest" href="manifest.json">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#ffffff;--bg2:#f5f5f3;--bg3:#eeede9;
+  --text:#1a1a1a;--text2:#666;--text3:#999;
+  --border:rgba(0,0,0,0.12);--border2:rgba(0,0,0,0.2);
+  --radius:8px;--radius-lg:12px;
+  --pos:#1D9E75;--neg:#D85A30;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#1a1a1a;--bg2:#242424;--bg3:#2e2e2e;
+    --text:#f0f0f0;--text2:#aaa;--text3:#666;
+    --border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.2);
+  }
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg3);color:var(--text);min-height:100vh;padding-bottom:80px}
+.header{background:var(--bg);border-bottom:0.5px solid var(--border);padding:14px 16px;position:sticky;top:0;z-index:100}
+.header h1{font-size:17px;font-weight:600}
+.header p{font-size:12px;color:var(--text2);margin-top:2px}
+.tabs{display:flex;background:var(--bg);border-bottom:0.5px solid var(--border);position:sticky;top:57px;z-index:99}
+.tab{flex:1;padding:10px 4px;font-size:12px;text-align:center;cursor:pointer;border:none;background:transparent;color:var(--text2);border-bottom:2px solid transparent}
+.tab.active{color:var(--text);border-bottom:2px solid var(--text);font-weight:500}
+.section{display:none;padding:12px 14px}.section.active{display:block}
+.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.metric{background:var(--bg2);border-radius:var(--radius);padding:12px}
+.metric-label{font-size:11px;color:var(--text2);margin-bottom:4px}
+.metric-value{font-size:18px;font-weight:500}
+.pos{color:var(--pos)}.neg{color:var(--neg)}.neu{color:var(--text2)}
+.card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin-bottom:12px}
+.card-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:5px 6px;font-size:10px;font-weight:600;color:var(--text2);border-bottom:0.5px solid var(--border);white-space:nowrap}
+td{padding:7px 6px;border-bottom:0.5px solid var(--border);font-size:12px;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr.group-row td{background:var(--bg2);font-weight:600}
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:12px;color:var(--text2);margin-bottom:5px}
+.form-group input,.form-group select{width:100%;padding:10px 12px;font-size:14px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);-webkit-appearance:none}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:var(--text)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{padding:10px 20px;font-size:14px;cursor:pointer;border-radius:var(--radius);font-weight:500;width:100%}
+.btn-primary{background:var(--text);color:var(--bg);border:none;margin-top:4px}
+.btn-secondary{background:transparent;border:0.5px solid var(--border2);color:var(--text);margin-top:4px}
+.btn-danger{background:transparent;border:0.5px solid var(--border);color:var(--neg);padding:4px 10px;font-size:11px;width:auto;border-radius:var(--radius)}
+.date-scroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:10px;scrollbar-width:none}
+.date-scroll::-webkit-scrollbar{display:none}
+.date-badge{flex-shrink:0;font-size:11px;background:var(--bg2);padding:5px 10px;border-radius:20px;cursor:pointer;border:0.5px solid var(--border);color:var(--text2);white-space:nowrap}
+.date-badge.active{background:var(--text);color:var(--bg);border-color:var(--text)}
+.cat-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.cat-badge{font-size:11px;padding:4px 10px;border-radius:20px;cursor:pointer;border:0.5px solid var(--border);color:var(--text2);background:var(--bg2)}
+.chart-wrap{position:relative;width:100%;height:220px;margin-top:4px}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;font-size:11px;color:var(--text2)}
+.legend span{display:flex;align-items:center;gap:4px}
+.legend-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.empty{text-align:center;padding:32px 16px;color:var(--text2);font-size:13px;line-height:1.6}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:9px 18px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;white-space:nowrap}
+.toast.show{opacity:1}
+.section-label{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 8px}
+.divider{height:0.5px;background:var(--border);margin:14px 0}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📈 투자 현황 관리</h1>
+  <p id="header-date">로딩 중...</p>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('dashboard')">대시보드</button>
+  <button class="tab" onclick="switchTab('entry')">입력</button>
+  <button class="tab" onclick="switchTab('history')">기록</button>
+  <button class="tab" onclick="switchTab('chart')">차트</button>
+</div>
+
+<div id="tab-dashboard" class="section active">
+  <div id="metrics" class="metric-grid"></div>
+  <div class="card">
+    <div class="card-title">항목별 현황</div>
+    <div id="latest-table"></div>
+  </div>
+</div>
+
+<div id="tab-entry" class="section">
+  <div class="card">
+    <div class="card-title">새 데이터 입력</div>
+    <div class="form-group">
+      <label>날짜</label>
+      <input type="date" id="entry-date">
+    </div>
+    <div class="form-group">
+      <label>항목</label>
+      <select id="entry-cat">
+        <option>연금저축</option>
+        <option>ISA</option>
+        <option>IRP</option>
+        <option>김시온</option>
+        <option>김로아</option>
+        <option>펀드</option>
+        <option>주식</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>투입금액 (원)</label>
+        <input type="number" id="entry-invested" placeholder="28000000">
+      </div>
+      <div class="form-group">
+        <label>평가금액 (원)</label>
+        <input type="number" id="entry-eval" placeholder="37000000">
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="addEntry()">저장</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">기존 데이터 불러오기</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:10px">구글시트 기반 데이터(2025년 4월~6월)를 불러옵니다.</p>
+    <button class="btn btn-secondary" onclick="loadSampleData()">기존 데이터 불러오기</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">데이터 백업 / 복원</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:10px">데이터를 JSON 파일로 내보내거나 불러올 수 있습니다.</p>
+    <div class="form-row">
+      <button class="btn btn-secondary" onclick="exportData()">내보내기</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">불러오기</button>
+    </div>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+  </div>
+</div>
+
+<div id="tab-history" class="section">
+  <div class="date-scroll" id="date-filter"></div>
+  <div class="card">
+    <div class="card-title">기록 목록</div>
+    <div id="history-table"></div>
+  </div>
+</div>
+
+<div id="tab-chart" class="section">
+  <div class="card">
+    <div class="card-title">항목 선택</div>
+    <div class="cat-wrap" id="cat-filter"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">평가금액 추이</div>
+    <div class="legend" id="legend-eval"></div>
+    <div class="chart-wrap"><canvas id="chartEval" role="img" aria-label="항목별 평가금액 추이"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">수익률 추이 (%)</div>
+    <div class="legend" id="legend-ret"></div>
+    <div class="chart-wrap"><canvas id="chartRet" role="img" aria-label="항목별 수익률 추이"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">자산 비중 (최신)</div>
+    <div class="legend" id="legend-pie"></div>
+    <div style="position:relative;width:100%;height:220px"><canvas id="chartPie" role="img" aria-label="항목별 자산 비중"></canvas></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const CATS=['연금저축','ISA','IRP','김시온','김로아','펀드','주식'];
+const PENSION=['연금저축','ISA','IRP'];
+const COLORS=['#534AB7','#1D9E75','#185FA5','#D85A30','#BA7517','#639922','#D4537E'];
+
+let data=[];
+let selectedCats=[...CATS];
+let chartEval=null,chartRet=null,chartPie=null;
+
+function fmt(n){return n==null?'-':Math.round(n).toLocaleString('ko-KR')+'원'}
+function fmtShort(n){if(n==null)return'-';if(Math.abs(n)>=1e8)return (n/1e8).toFixed(1)+'억';if(Math.abs(n)>=1e4)return (n/1e4).toFixed(0)+'만';return Math.round(n).toLocaleString();}
+function fmtPct(n){if(n==null)return'-';return(n>=0?'+':'')+n.toFixed(1)+'%'}
+function calcRet(inv,ev){if(!inv||inv===0)return null;return(ev-inv)/inv*100}
+function getEntry(date,cat){return data.find(d=>d.date===date&&d.cat===cat)}
+function getDates(){return[...new Set(data.map(d=>d.date))].sort()}
+function getLatest(){const dd=getDates();return dd[dd.length-1]}
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
+
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['dashboard','entry','history','chart'][i]===t));
+  document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='dashboard')renderDashboard();
+  if(t==='history')renderHistory();
+  if(t==='chart')renderCharts();
+}
+
+function renderDashboard(){
+  const latest=getLatest();
+  const d=document.getElementById('header-date');
+  if(!latest){
+    d.textContent='데이터 없음';
+    document.getElementById('metrics').innerHTML='<div style="grid-column:1/-1"><p class="empty">데이터가 없습니다.<br>입력 탭에서 추가하거나<br>기존 데이터를 불러오세요.</p></div>';
+    document.getElementById('latest-table').innerHTML='';return;
+  }
+  d.textContent='기준: '+latest;
+  const prev=getDates().slice(-2)[0];
+  let totalEval=0,totalInv=0,prevTotal=0;
+  CATS.forEach(c=>{
+    const e=getEntry(latest,c);if(e){totalEval+=e.eval;totalInv+=e.invested}
+    if(prev){const p=getEntry(prev,c);if(p)prevTotal+=p.eval}
+  });
+  const ret=calcRet(totalInv,totalEval);
+  const profit=totalEval-totalInv;
+  const chg=prevTotal>0?(totalEval-prevTotal)/prevTotal*100:null;
+  const chgAmt=prevTotal>0?totalEval-prevTotal:null;
+
+  document.getElementById('metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">총 평가금액</div><div class="metric-value" style="font-size:15px">${fmtShort(totalEval)}원</div></div>
+    <div class="metric"><div class="metric-label">총 수익률</div><div class="metric-value"><span class="${ret>=0?'pos':'neg'}">${fmtPct(ret)}</span></div></div>
+    <div class="metric"><div class="metric-label">총 수익금</div><div class="metric-value" style="font-size:14px"><span class="${profit>=0?'pos':'neg'}">${fmtShort(profit)}원</span></div></div>
+    <div class="metric"><div class="metric-label">전회 대비</div><div class="metric-value"><span class="${chg!=null&&chg>=0?'pos':chg!=null?'neg':'neu'}">${chg!=null?fmtPct(chg):'-'}</span></div></div>
+  `;
+
+  let pensionEval=0,pensionInv=0;
+  PENSION.forEach(c=>{const e=getEntry(latest,c);if(e){pensionEval+=e.eval;pensionInv+=e.invested}});
+
+  let rows='';
+  CATS.forEach(c=>{
+    const e=getEntry(latest,c);if(!e)return;
+    const r=calcRet(e.invested,e.eval);
+    rows+=`<tr><td>${c}</td><td style="text-align:right">${fmtShort(e.eval)}</td><td style="text-align:right"><span class="${r>=0?'pos':'neg'}">${fmtPct(r)}</span></td></tr>`;
+  });
+  const pr=calcRet(pensionInv,pensionEval);
+  rows+=`<tr class="group-row"><td>연금소계</td><td style="text-align:right">${fmtShort(pensionEval)}</td><td style="text-align:right"><span class="${pr>=0?'pos':'neg'}">${fmtPct(pr)}</span></td></tr>`;
+  rows+=`<tr class="group-row"><td>총계</td><td style="text-align:right">${fmtShort(totalEval)}</td><td style="text-align:right"><span class="${ret>=0?'pos':'neg'}">${fmtPct(ret)}</span></td></tr>`;
+
+  document.getElementById('latest-table').innerHTML=`<table><thead><tr><th>항목</th><th style="text-align:right">평가금액</th><th style="text-align:right">수익률</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderHistory(filterDate='all'){
+  const dates=getDates().reverse();
+  const filterDiv=document.getElementById('date-filter');
+  filterDiv.innerHTML='';
+  const all=document.createElement('span');
+  all.className='date-badge'+(filterDate==='all'?' active':'');
+  all.textContent='전체';all.onclick=()=>renderHistory('all');
+  filterDiv.appendChild(all);
+  dates.forEach(d=>{
+    const b=document.createElement('span');
+    b.className='date-badge'+(filterDate===d?' active':'');
+    b.textContent=d.slice(5);b.onclick=()=>renderHistory(d);
+    filterDiv.appendChild(b);
+  });
+  const filtered=filterDate==='all'?[...data]:data.filter(d=>d.date===filterDate);
+  if(!filtered.length){document.getElementById('history-table').innerHTML='<p class="empty">데이터가 없습니다.</p>';return}
+  const rows=filtered.sort((a,b)=>b.date.localeCompare(a.date)||CATS.indexOf(a.cat)-CATS.indexOf(b.cat))
+    .map(e=>{const r=calcRet(e.invested,e.eval);
+      return`<tr><td>${e.date.slice(5)}<br><span style="color:var(--text2);font-size:10px">${e.cat}</span></td><td style="text-align:right">${fmtShort(e.invested)}</td><td style="text-align:right">${fmtShort(e.eval)}</td><td style="text-align:right"><span class="${r>=0?'pos':'neg'}">${fmtPct(r)}</span></td><td><button class="btn btn-danger" onclick="deleteEntry('${e.date}','${e.cat}')">삭제</button></td></tr>`;
+    }).join('');
+  document.getElementById('history-table').innerHTML=`<table><thead><tr><th>날짜/항목</th><th style="text-align:right">투입</th><th style="text-align:right">평가</th><th style="text-align:right">수익률</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function deleteEntry(date,cat){
+  if(!confirm(`${date} ${cat} 삭제할까요?`))return;
+  data=data.filter(d=>!(d.date===date&&d.cat===cat));
+  saveData();renderHistory();showToast('삭제되었습니다');
+}
+
+function addEntry(){
+  const date=document.getElementById('entry-date').value;
+  const cat=document.getElementById('entry-cat').value;
+  const inv=parseFloat(document.getElementById('entry-invested').value);
+  const ev=parseFloat(document.getElementById('entry-eval').value);
+  if(!date||!inv||!ev){showToast('모든 항목을 입력해주세요');return}
+  data=data.filter(d=>!(d.date===date&&d.cat===cat));
+  data.push({date,cat,invested:inv,eval:ev});
+  saveData();
+  document.getElementById('entry-invested').value='';
+  document.getElementById('entry-eval').value='';
+  showToast('저장되었습니다!');
+  renderDashboard();
+}
+
+function renderCharts(){
+  renderCatFilter();
+  if(!chartEval){
+    const isDark=matchMedia('(prefers-color-scheme:dark)').matches;
+    const gridColor=isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.06)';
+    const textColor=isDark?'#aaa':'#888';
+    const baseOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:textColor,font:{size:10}},grid:{color:gridColor}},y:{ticks:{color:textColor,font:{size:10}},grid:{color:gridColor}}}};
+    chartEval=new Chart(document.getElementById('chartEval'),{type:'line',data:{labels:[],datasets:[]},options:{...baseOpts,scales:{...baseOpts.scales,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>(v/1e8).toFixed(1)+'억'}}}}});
+    chartRet=new Chart(document.getElementById('chartRet'),{type:'line',data:{labels:[],datasets:[]},options:{...baseOpts,scales:{...baseOpts.scales,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>v.toFixed(1)+'%'}}}}});
+    chartPie=new Chart(document.getElementById('chartPie'),{type:'doughnut',data:{labels:[],datasets:[]},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{display:false}}}});
+  }
+  updateCharts();
+}
+
+function renderCatFilter(){
+  const div=document.getElementById('cat-filter');div.innerHTML='';
+  CATS.forEach((c,i)=>{
+    const b=document.createElement('span');
+    b.className='cat-badge';b.textContent=c;
+    const col=COLORS[i];
+    if(selectedCats.includes(c)){b.style.background=col;b.style.color='#fff';b.style.borderColor=col;}
+    b.onclick=()=>{
+      if(selectedCats.includes(c))selectedCats=selectedCats.filter(x=>x!==c);
+      else selectedCats.push(c);
+      renderCatFilter();updateCharts();
+    };
+    div.appendChild(b);
+  });
+}
+
+function updateCharts(){
+  const dates=getDates();
+  if(!dates.length||!chartEval)return;
+  const dateLabels=dates.map(d=>d.slice(5));
+  const evalDs=selectedCats.map(c=>({label:c,data:dates.map(d=>{const e=getEntry(d,c);return e?e.eval:null}),borderColor:COLORS[CATS.indexOf(c)],backgroundColor:COLORS[CATS.indexOf(c)]+'30',tension:.3,fill:false,pointRadius:3,borderWidth:2,spanGaps:true}));
+  chartEval.data.labels=dateLabels;chartEval.data.datasets=evalDs;chartEval.update();
+  const retDs=selectedCats.map(c=>({label:c,data:dates.map(d=>{const e=getEntry(d,c);return e?calcRet(e.invested,e.eval):null}),borderColor:COLORS[CATS.indexOf(c)],backgroundColor:COLORS[CATS.indexOf(c)]+'30',tension:.3,fill:false,pointRadius:3,borderWidth:2,spanGaps:true}));
+  chartRet.data.labels=dateLabels;chartRet.data.datasets=retDs;chartRet.update();
+  const latest=getLatest();
+  const pl=[],pd=[],pc=[];
+  CATS.forEach((c,i)=>{const e=getEntry(latest,c);if(e&&selectedCats.includes(c)){pl.push(c);pd.push(e.eval);pc.push(COLORS[i])}});
+  chartPie.data.labels=pl;chartPie.data.datasets=[{data:pd,backgroundColor:pc,borderWidth:1}];chartPie.update();
+  const tot=pd.reduce((a,b)=>a+b,0);
+  document.getElementById('legend-pie').innerHTML=pl.map((l,i)=>`<span><span class="legend-dot" style="background:${pc[i]}"></span>${l} ${tot>0?(pd[i]/tot*100).toFixed(1)+'%':''}</span>`).join('');
+  document.getElementById('legend-eval').innerHTML=selectedCats.map(c=>`<span><span class="legend-dot" style="background:${COLORS[CATS.indexOf(c)]}"></span>${c}</span>`).join('');
+  document.getElementById('legend-ret').innerHTML=document.getElementById('legend-eval').innerHTML;
+}
+
+function saveData(){
+  try{localStorage.setItem('portfolio-data',JSON.stringify(data))}catch(e){showToast('저장 실패: '+e.message)}
+}
+function loadData(){
+  try{const r=localStorage.getItem('portfolio-data');if(r)data=JSON.parse(r)}catch(e){}
+  renderDashboard();
+}
+
+function exportData(){
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='portfolio-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();showToast('백업 파일 다운로드 완료');
+}
+function importData(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const imported=JSON.parse(ev.target.result);
+      if(!Array.isArray(imported))throw new Error('올바른 형식이 아닙니다');
+      imported.forEach(r=>{data=data.filter(d=>!(d.date===r.date&&d.cat===r.cat));data.push(r)});
+      saveData();renderDashboard();showToast(imported.length+'개 항목 불러오기 완료!');
+    }catch(err){showToast('불러오기 실패: '+err.message)}
+  };
+  reader.readAsText(file);
+  e.target.value='';
+}
+
+function loadSampleData(){
+  const raw=[
+    {date:'2025-04-21',cat:'연금저축',invested:28079895,eval:37661250},
+    {date:'2025-04-21',cat:'ISA',invested:8062393,eval:10367023},
+    {date:'2025-04-21',cat:'IRP',invested:55032180,eval:69609439},
+    {date:'2025-04-21',cat:'김시온',invested:10600000,eval:19411897},
+    {date:'2025-04-21',cat:'김로아',invested:3000000,eval:2848046},
+    {date:'2025-04-21',cat:'펀드',invested:38560,eval:45128},
+    {date:'2025-04-21',cat:'주식',invested:21063860,eval:24241238},
+    {date:'2025-05-11',cat:'연금저축',invested:28079895,eval:45554810},
+    {date:'2025-05-11',cat:'ISA',invested:8152393,eval:11780230},
+    {date:'2025-05-11',cat:'IRP',invested:55032180,eval:80256829},
+    {date:'2025-05-11',cat:'김시온',invested:10600000,eval:24443473},
+    {date:'2025-05-11',cat:'김로아',invested:3000000,eval:3563932},
+    {date:'2025-05-11',cat:'펀드',invested:38560,eval:46459},
+    {date:'2025-05-11',cat:'주식',invested:21085559,eval:30919648},
+    {date:'2025-05-12',cat:'연금저축',invested:28079895,eval:45028890},
+    {date:'2025-05-12',cat:'ISA',invested:8152393,eval:11663325},
+    {date:'2025-05-12',cat:'IRP',invested:55032180,eval:81073657},
+    {date:'2025-05-12',cat:'김시온',invested:10600000,eval:23830457},
+    {date:'2025-05-12',cat:'김로아',invested:3000000,eval:3407932},
+    {date:'2025-05-12',cat:'펀드',invested:38560,eval:46849},
+    {date:'2025-05-12',cat:'주식',invested:21085559,eval:30025805},
+    {date:'2025-05-13',cat:'연금저축',invested:28079895,eval:46009680},
+    {date:'2025-05-13',cat:'ISA',invested:8152393,eval:11802900},
+    {date:'2025-05-13',cat:'IRP',invested:55032180,eval:82301819},
+    {date:'2025-05-13',cat:'김시온',invested:10600000,eval:24578857},
+    {date:'2025-05-13',cat:'김로아',invested:3000000,eval:3575932},
+    {date:'2025-05-13',cat:'펀드',invested:38560,eval:47328},
+    {date:'2025-05-13',cat:'주식',invested:21085559,eval:31148195},
+    {date:'2025-05-14',cat:'연금저축',invested:28079895,eval:46267340},
+    {date:'2025-05-14',cat:'ISA',invested:8152393,eval:11878695},
+    {date:'2025-05-14',cat:'IRP',invested:55032180,eval:82065781},
+    {date:'2025-05-14',cat:'김시온',invested:10600000,eval:24880057},
+    {date:'2025-05-14',cat:'김로아',invested:3000000,eval:3653932},
+    {date:'2025-05-14',cat:'펀드',invested:38560,eval:47417},
+    {date:'2025-05-14',cat:'주식',invested:21085559,eval:31517220},
+    {date:'2025-05-21',cat:'연금저축',invested:29079895,eval:47095914},
+    {date:'2025-05-21',cat:'ISA',invested:8652393,eval:12094716},
+    {date:'2025-05-21',cat:'IRP',invested:56032180,eval:82073806},
+    {date:'2025-05-21',cat:'김시온',invested:10600000,eval:24294600},
+    {date:'2025-05-21',cat:'김로아',invested:3000000,eval:3668975},
+    {date:'2025-05-21',cat:'펀드',invested:38560,eval:46989},
+    {date:'2025-05-21',cat:'주식',invested:18585559,eval:28841467},
+    {date:'2025-05-22',cat:'연금저축',invested:29079895,eval:47257544},
+    {date:'2025-05-22',cat:'ISA',invested:8652393,eval:12303561},
+    {date:'2025-05-22',cat:'IRP',invested:56032180,eval:83025648},
+    {date:'2025-05-22',cat:'김시온',invested:10600000,eval:24368062},
+    {date:'2025-05-22',cat:'김로아',invested:3000000,eval:3638975},
+    {date:'2025-05-22',cat:'펀드',invested:38560,eval:47244},
+    {date:'2025-05-22',cat:'주식',invested:18585559,eval:28974787},
+    {date:'2025-05-26',cat:'연금저축',invested:29079895,eval:48202384},
+    {date:'2025-05-26',cat:'ISA',invested:8692393,eval:12501723},
+    {date:'2025-05-26',cat:'IRP',invested:56032180,eval:84837119},
+    {date:'2025-05-26',cat:'김시온',invested:10600000,eval:24298428},
+    {date:'2025-05-26',cat:'김로아',invested:3000000,eval:3740975},
+    {date:'2025-05-26',cat:'펀드',invested:38560,eval:47409},
+    {date:'2025-05-26',cat:'주식',invested:18585559,eval:28930694},
+    {date:'2025-05-27',cat:'연금저축',invested:29079895,eval:49507744},
+    {date:'2025-05-27',cat:'ISA',invested:8692393,eval:12220495},
+    {date:'2025-05-27',cat:'IRP',invested:56032180,eval:86403614},
+    {date:'2025-05-27',cat:'김시온',invested:10600000,eval:23905529},
+    {date:'2025-05-27',cat:'김로아',invested:3000000,eval:3896975},
+    {date:'2025-05-27',cat:'펀드',invested:38560,eval:47323},
+    {date:'2025-05-27',cat:'주식',invested:18585559,eval:28510098},
+    {date:'2025-05-29',cat:'연금저축',invested:29079895,eval:50179284},
+    {date:'2025-05-29',cat:'ISA',invested:8742393,eval:11888098},
+    {date:'2025-05-29',cat:'IRP',invested:56032180,eval:87319736},
+    {date:'2025-05-29',cat:'김시온',invested:10600000,eval:23305529},
+    {date:'2025-05-29',cat:'김로아',invested:3000000,eval:3945643},
+    {date:'2025-05-29',cat:'펀드',invested:38560,eval:47973},
+    {date:'2025-05-29',cat:'주식',invested:18585559,eval:27951194},
+    {date:'2025-06-01',cat:'연금저축',invested:29079895,eval:51917962},
+    {date:'2025-06-01',cat:'ISA',invested:8742393,eval:11919960},
+    {date:'2025-06-01',cat:'IRP',invested:56032180,eval:89772621},
+    {date:'2025-06-01',cat:'김시온',invested:10600000,eval:24888671},
+    {date:'2025-06-01',cat:'김로아',invested:3000000,eval:4383643},
+    {date:'2025-06-01',cat:'펀드',invested:38560,eval:48327},
+    {date:'2025-06-01',cat:'주식',invested:18585559,eval:29498628},
+  ];
+  raw.forEach(r=>{data=data.filter(d=>!(d.date===r.date&&d.cat===r.cat));data.push(r)});
+  saveData();showToast('기존 데이터를 불러왔습니다!');renderDashboard();
+}
+
+document.getElementById('entry-date').value=new Date().toISOString().split('T')[0];
+loadData();
+</script>
+</body>
+</html>
